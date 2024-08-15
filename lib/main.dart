@@ -1,13 +1,8 @@
 import 'package:file_downloader/core/utilities/file_downloader.dart';
-import 'package:file_downloader/data/models/hive_model/file_download.dart';
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  await Hive.initFlutter();
-  Hive.registerAdapter(FileDownloadAdapter());
-  await Hive.openBox<FileDownload>("File_download");
   runApp(const MyApp());
 }
 
@@ -51,19 +46,14 @@ class _HomePageState extends State<HomePage> {
               title: Text("pdf-${index}"),
               trailing: InkWell(
                   onTap: () async {
-                    final result = await FileDownloader.downloadFile(
-                        okCallback: (count, total) {},
-                        fileName: "pdf-${index}",
-                        url: pdfUrls[index]);
-
-                    if (result.$1 == true) {
-                      setState(() {});
-                    }
+                    FileDownloader fileDownloader = FileDownloader();
+                    fileDownloader.downloadFile(
+                      pdfUrls[index],
+                      'pdf-${index}',
+                      (p0, p1) {},
+                    );
                   },
-                  child: Icon(
-                      FileDownloader.fileAlreadyExist(fileName: "pdf-${index}")
-                          ? Icons.download_done
-                          : Icons.download)),
+                  child: const Icon(Icons.download)),
             );
           }),
     );

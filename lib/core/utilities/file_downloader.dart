@@ -1,108 +1,96 @@
 import 'dart:io';
-
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:dio/dio.dart';
-import 'package:file_downloader/data/models/hive_model/file_download.dart';
-import 'package:hive/hive.dart';
-import 'package:open_filex/open_filex.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class FileDownloader {
-  static const String boxName = 'File_download';
+  Future<(bool, String)> downloadFile(
+    String url,
+    String fileName,
+    void Function(int, int)? onReceiveProgress,
+  ) async {
+    try {
+      bool permissionGranted = await _requestPermission();
+      if (!permissionGranted) {
+        return (false, "Permission denied");
+      }
 
-  static Future<bool> _requestPermission() async {
-    PermissionStatus status = await Permission.storage.status;
+      Directory? directory = await _getDownloadPath();
+      if (directory == null || !await directory.exists()) {
+        return (false, "Directory does not exist");
+      }
 
-    if (!status.isGranted) {
-      status = await Permission.storage.request();
+      Dio dio = Dio();
+      File saveFile = File("${directory.path}/$fileName.pdf");
+
+      if (saveFile.existsSync()) {
+        saveFile.deleteSync();
+      }
+
+      var response = await dio.download(url, saveFile.path,
+          onReceiveProgress: onReceiveProgress);
+
+      if (response.statusCode == 200) {
+        return (true, saveFile.path);
+      } else {
+        return (false, "Failed to download file: ${response.statusCode}");
+      }
+    } catch (e) {
+      return (false, "Error: ${e.toString()}");
     }
-
-    if (status != PermissionStatus.granted) {
-      print('Permission denied. Cannot download the file.');
-      return false;
-    }
-    return true;
   }
 
-  static Future<String?> _getDownloadPath() async {
+  Future<Directory?> _getDownloadPath() async {
     Directory? directory;
-
-    print(await getExternalStorageDirectories(type: StorageDirectory.downloads));
     try {
       if (Platform.isIOS) {
         directory = await getApplicationDocumentsDirectory();
       } else {
-        directory = await getExternalStorageDirectory();
-        if (!await directory!.exists()) {
+        directory = Directory('/storage/emulated/0/Download/file_downloader');
+        if (!await directory.exists()) {
           await directory.create(recursive: true);
         }
       }
     } catch (err) {
-      print("Cannot get download folder path: $err");
+      debugPrint("Cannot get download folder path: $err");
     }
-    print(directory?.path);
-    return directory?.path;
+    debugPrint(directory?.path);
+    return directory;
   }
 
-  static Future<(bool, String)> downloadFile({
-    required String fileName,
-    required String url,
-    required Function okCallback,
-  }) async {
-    final dio = Dio();
-    bool isSuccess = false;
-    String savePath = '';
+  Future<bool> _requestPermission() async {
+    PermissionStatus status = await Permission.storage.status;
+    print(status);
 
-    bool permission = await _requestPermission();
-    bool isFileAlreadyExist = fileAlreadyExist(fileName: fileName);
+    if (status.isPermanentlyDenied) {
+      await openAppSettings();
+      return false;
+    }
 
-    if (permission && !isFileAlreadyExist) {
-      String? directory = await _getDownloadPath();
-      savePath = '${directory ?? ""}/$fileName.pdf';
+    if (Platform.isAndroid) {
+      DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+      AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
 
-      try {
-        var response = await dio.download(
-          url,
-          savePath,
-          onReceiveProgress: (count, total) {
-            if (total != -1) {
-              print('${(count / total * 100).toStringAsFixed(0)}%');
-            }
-            okCallback(count, total);
-          },
-          deleteOnError: true,
-        );
-
-        if (response.statusCode == 200) {
-          isSuccess = true;
-          // _storeTheFile(fileName: fileName, pathName: savePath);
+      if (status.isDenied) {
+        if (androidInfo.version.sdkInt < 33) {
+          status = await Permission.storage.request();
         } else {
-          isSuccess = false;
+          status = await Permission.phone.request();
         }
-      } on Exception catch (e) {
-        print("Download failed: $e");
-        isSuccess = false;
       }
-    } else {
-      print(isFileAlreadyExist
-          ? "File already exists: $fileName"
-          : "Permission denied.");
+    } else if (Platform.isIOS) {
+      if (status.isDenied) {
+        status = await Permission.storage.request();
+      }
     }
 
-    return (isSuccess, savePath);
-  }
-
-  static void _storeTheFile(
-      {required String pathName, required String fileName}) async {
-    final box = Hive.box<FileDownload>(boxName);
-    final pdfDownload =
-        FileDownload(pathName: pathName, fileName: fileName, id: 0);
-    await box.add(pdfDownload);
-    print("File stored in Hive: $fileName");
-  }
-
-  static bool fileAlreadyExist({required String fileName}) {
-    final box = Hive.box<FileDownload>(boxName);
-    return box.values.any((element) => element.fileName == fileName);
+    if (status.isGranted) {
+      return true;
+    } else {
+      debugPrint('Permission denied');
+      return false;
+    }
   }
 }
