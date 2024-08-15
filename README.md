@@ -1,16 +1,10 @@
-# file_downloader
+Flutter File Download Example
 
-A new Flutter project.
+This Flutter project demonstrates how to download files (like PDFs) using Flutter. It includes error handling, progress indicators, and file management.
 
-## Getting Started
+Features
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+-> Download files from a given URL.
+-> Save downloaded files locally.
+-> Check if a file is already downloaded to avoid redundant downloads.
+-> Display download progress.
