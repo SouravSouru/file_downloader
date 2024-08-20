@@ -62,7 +62,6 @@ class FileDownloader {
 
   Future<bool> _requestPermission() async {
     PermissionStatus status = await Permission.storage.status;
-    print(status);
 
     if (status.isPermanentlyDenied) {
       await openAppSettings();
@@ -77,7 +76,7 @@ class FileDownloader {
         if (androidInfo.version.sdkInt < 33) {
           status = await Permission.storage.request();
         } else {
-          status = await Permission.phone.request();
+          status = await Permission.photos.request();
         }
       }
     } else if (Platform.isIOS) {

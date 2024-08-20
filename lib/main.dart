@@ -43,15 +43,28 @@ class _HomePageState extends State<HomePage> {
           itemCount: pdfUrls.length,
           itemBuilder: (context, index) {
             return ListTile(
-              title: Text("pdf-${index}"),
+              title: Text("pdf-$index"),
               trailing: InkWell(
                   onTap: () async {
                     FileDownloader fileDownloader = FileDownloader();
-                    fileDownloader.downloadFile(
+                    var result = await fileDownloader.downloadFile(
                       pdfUrls[index],
-                      'pdf-${index}',
-                      (p0, p1) {},
+                      'pdf-$index',
+                      (count, total) {
+                        if (total != -1) {
+                          debugPrint(
+                              '${(count / total * 100).toStringAsFixed(0)}%');
+                        }
+                      },
                     );
+
+                    if (!mounted) return;
+
+                    if (result.$1) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text('Download successful!'),
+                      ));
+                    }
                   },
                   child: const Icon(Icons.download)),
             );
